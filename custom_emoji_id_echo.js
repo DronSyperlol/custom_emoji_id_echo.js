@@ -2,7 +2,7 @@ import { Telegraf } from "telegraf";
 
 const bot = new Telegraf(process.env.BOT_TOKEN, {
   telegram: {
-    apiRoot: 'https://telegram-api-mirror.syperlol-vps01.ru'
+    apiRoot: 'https://api.telegram.org'
   }
 });
 
@@ -16,13 +16,29 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
-
+const MODE = "all";
 bot.on("message", async (ctx) => {
   const msg = ctx.message;
 
   const text = msg.text ?? msg.caption ?? "";
   const entities = msg.entities ?? msg.caption_entities ?? [];
-
+  if (MODE === "all")
+  {
+    let allLines = entities.map(e => {
+      const visible = text.slice(e.offset, e.offset + e.length);
+      let ret = `${e.type}: == <tg-emoji emoji-id="${e.custom_emoji_id}">${visible}</tg-emoji> ==\n`
+	     +  Object.entries(e).filter(([key, value]) => key !== "type").map(([key, value]) => ` + ${key} = ${value}`).join('\n')
+	     +  `\n<code>${escapeHtml(`<tg-emoji emoji-id="${e.custom_emoji_id}">${visible}</tg-emoji>`)}</code>`
+	     +  '\n';
+      return ret;
+    }).join('\n');
+    if (allLines.length > 0)
+      await ctx.telegram.sendMessage(ctx.chat.id, allLines, {
+        reply_to_message_id: msg.message_id,
+        parse_mode: 'html', 
+      });
+    return;
+  }
   const customEmojis = entities
     .filter(e => e.type === "custom_emoji" && e.custom_emoji_id)
     .sort((a, b) => a.offset - b.offset); // сохраняем порядок
